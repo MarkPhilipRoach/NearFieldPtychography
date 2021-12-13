@@ -1,10 +1,13 @@
 clear all
 
 Tests = 1; %Choose number of tests
-ca = cell(1,5); %Generate blank legend for figure
+
+
+%% Code for solving by BlockPR
+
 %% Assigning variables
 
-d = 30; %Choose the lenghth of the sample
+d = 102; %Choose the lenghth of the sample
 objectX = rand(d,Tests) + 1i*randn(d,Tests); %Generate the test samples
 
 
@@ -19,10 +22,11 @@ Dmatrix = zeros(d,d);
 signalnoiseratio = zeros(4,1);
 Error1 = zeros(4,1);
 runtime1 = zeros(1,1);
+ca = cell(1,5);
 %% Choose delta
 
-delta = 8;%Choose delta
-ca{5} = sprintf('%d BlockPR', delta); 
+delta = 26; %Choose delta
+ca{5} = sprintf('%d BlockPR', delta); %Update legend
 D = d*(2*delta-1);
 K = 0:d-1; %set of shifts
 L = 0:2*delta-2;% %set of frequencies
@@ -42,9 +46,6 @@ for n = 1:delta
 end
 
 %% Noise
-%Generate the additive noise (not adjusted for magnitude yet) that will be used for the test
-Noise = randn(Tests*Knum,Lnum) + 1i*randn(Tests*Knum,Lnum); 
-
 s = 0;
 for SNR = 20:20:80 %Adjusting the signal-to-noise ratio
 s = s + 1;
@@ -77,10 +78,7 @@ for l = 1:2*delta-1
 end
 
 %Construct our matrix
-maskmatrix = repmat(masklmatrix,Knum,1);
-for i=1:Knum
-    maskmatrix((i-1)*(2*delta-1)+1:i*(2*delta-1),:) = circshift(maskmatrix((i-1)*(2*delta-1)+1:i*(2*delta-1),:) ,(i-1)*(2*delta-1),2);
-end
+maskmatrix = BlockCirculant(masklmatrix,d);
 
 %% Constructing measurements
 %Construct the convolutional measurements and rearrange the measurement to
@@ -101,7 +99,7 @@ end
 
 %% Adding noise
 %Here we add the noise to our measurement for each test
-noise = Noise((test-1)*Knum+1:test*Knum,:);
+noise = randn(Knum,Lnum) + 1i*randn(Knum,Lnum);
 noise = (norm(Y)/10^(SNR/10))*noise/norm(noise);
 Y = transpose(Y + noise);
 %% Constructing y
@@ -109,7 +107,7 @@ Y = transpose(Y + noise);
 %matrix and multiplying with the vectorization of our noisy measurements
 
 y = maskmatrix\Y(:);
-
+y = y(:);
 %% Weighted angular synchronization
 %Perform weighted angular synchronization
 
@@ -135,8 +133,8 @@ for i=1:d
     end
     Dmatrix(i,i) = sum(Weight(i,:));
 end
-L = Dmatrix - Xtilde; %Compute the weighted Laplacian
-[xrec2, ~, ~] = eigs(L, 1, 'smallestabs');    % compute smallest eigenvector
+LG = Dmatrix - Xtilde; %Compute the weighted Laplacian
+[xrec2, ~, ~] = eigs(LG, 1, 'smallestabs');    % compute smallest eigenvector
 xrec2 = xrec2./abs(xrec2); %Normalize this eigenvector
 xest = sqrt(diag(X)).*xrec2; %Compute our estimate
 phaseOffset = angle( (xest'*object) / (object'*object) ); %Compute the global phase error
@@ -146,50 +144,42 @@ errorx = 10*log10(norm(xest - object)^2/norm(object)^2); %Compute the reconstruc
 Errortest(test) = errorx; %Log the reconstruction error
 runtime(test) = toc; %End the timer
 end
-signalnoiseratio(s) = SNR;
-Error1(s) = mean(Errortest);
-runtime1(s) = mean(runtime);
+signalnoiseratio(s) = SNR; %Record the SNR used for the test
+Error1(s) = mean(Errortest); %Compute the mean of the reconstruction error
+runtime1(s) = mean(runtime); %Compute the mean of the runtime
 end
-runtime = zeros(1,Tests);
+
 %% Code for solving by Wirtinger Flow
 
-%% Create variables
-
+%% Dummy variables
 signalnoiseratio = zeros(4,1);
-Error2 = zeros(4,5);
-runtime2 = zeros(4,5);
-nc = 0;
- 
-pointspread = zeros(d,1);
-for n = 1:d
-    pointspread(n) = exp(2*pi*1i*n^2/(2*delta-1));
-end
-maskorg = zeros(d,1);
-for n = 1:delta
-    maskorg(n) = (exp((-n+1)/a))/((2*delta-1)^(1/4))*exp(-2*pi*1i*n^2/(2*delta-1));
-end
-K = 0:d-1; %set of shifts
-L = 0:2*delta-2;% %set of frequencies
-Knum = length(K);
-Lnum = length(L);
-Noise = randn(Tests*Knum,Lnum) + 1i*randn(Tests*Knum,Lnum); 
+Error2 = zeros(4,4);
+runtime2 = zeros(4,4);
 ar = zeros(d,Knum*Lnum);
 Ar = zeros((Knum*Lnum)*d,d);
-Ar2 = zeros((Knum*Lnum)*d,d);
-Y2 = zeros((Knum*Lnum)*d,d);
 D = zeros(d,Knum*Lnum);
-for T = [250 500 1000 2000]
-nc = nc + 1; 
-ca{nc} = sprintf('%d iters', T);    
-s = 0;
-for SNR = 20:20:80   
-s = s + 1;
-Errortest = zeros(1,Tests);
-runtime = zeros(1,Tests);
-for test = 1:Tests
-object = objectX(:,test);
+Errortest = zeros(4,Tests);
+runtime = zeros(4,Tests);
+%% Iterations
+T = [250 500 750 1000]; %Set of Number of Iterations
 
-%% Creating measurements
+%% Noise
+%Generate the additive noise (not adjusted for magnitude yet) that will be used for the test
+Noise = randn(Tests*Knum,Lnum) + 1i*randn(Tests*Knum,Lnum); 
+
+s = 0;
+for SNR = 20:20:80 %Adjusting the signal-to-noise ratio
+s = s + 1;
+
+
+%% Starting test
+for test = 1:Tests
+object = objectX(:,test); %Choosing sample
+tic %Start the timer
+
+%% Constructing measurements
+%Construct the convolutional measurements and rearrange the measurement to
+%our requried form
 matrixmask = zeros(Lnum,d);
 for l = L
    shiftflipp = circshift(reversal(pointspread),-l);
@@ -208,59 +198,86 @@ for k = K
         Y(k+1,l) = Yconv(mod(-k,d)+1,mod(-l+k+1,Lnum)+1);
     end
 end
-%% Adding Noise
 
+%% Adding noise
+%Here we add the noise to our measurement for each test
 noise = randn(Knum,Lnum) + 1i*randn(Knum,Lnum);
 noise = (norm(Y)/10^(SNR/10))*noise/norm(noise);
+vecY = reshape(transpose(Y + noise),[],1);
 
-Y = transpose(Y + noise);
-vecY = Y(:);
-
-tic
-for n = 1:Knum*Lnum
-    ar(:,n) = circshift(conj(matrixmask(L(mod(n-1,Lnum)+1)+1,:))',K(floor((n-1)/Lnum)+1));
-        Ar((n-1)*d+1:n*d,:) = repmat(ar(:,n),1,d);
-        Ar2((n-1)*d+1:n*d,:) = repmat(ar(:,n)',d,1);
-        Y2((n-1)*d+1:n*d,1:d) = vecY(n);
-        for i = 1:d
-            D(i,(n-1)*d+i) = mod(ceil((i+n-2)/d)+1 ,2);
-        end
-end
-Matrix = (Ar.*Ar2);
 
 %% Initialization
+for n = 1:Knum*Lnum
+    ar(:,n) = circshift(conj(matrixmask(L(mod(n-1,Lnum)+1)+1,:))',K(floor((n-1)/Lnum)+1));
+    Ar((n-1)*d+1:n*d,:) = ar(:,n)*ar(:,n)';
+    for i = 1:d
+            D(i,(n-1)*d+i) = mod(ceil((i+n-2)/d)+1 ,2);
+    end
+end
 
 lambda = d*sum(vecY)/sum(vecnorm(ar));
-Z = D*(Matrix.*Y2)*(1/(Knum*Lnum));
-[~,~,V] = svd(Z,'econ');
-u = V(:,1);
-u = u./abs(u);
-z0 = sqrt(lambda)*u;
-%% Gradient Descent
+Z = D*(Ar.*reshape(repmat(reshape(transpose(repmat(vecY,1,d)),1,[]),1,d),[],d))*(1/(Knum*Lnum));
+
+[u, ~, ~] = eigs(Z, 1, 'largestabs','Tolerance',1e-4); %Compute largest eigenvector
+z0 = sqrt(lambda)*u/norm(u); %Set initial estimate
+%% Wirtinger Flow
 
 mu0 = 0.4;
 t0 = 330;
 z = z0;
-for t = 1:T
-mu = d*min(1 - exp(-t/t0),mu0);
-temp1 = repmat(transpose(abs(ar'*z).^2 - vecY),d,1);
-z = z - (mu/(d*abs(lambda)))*sum(reshape(temp1(:).*(Matrix*z),d,Knum*Lnum),2);
+for t = 1:T(4) %Compute the iterations
+if mod(t-1,50)==0
+Arz = Ar*z;
+else
 end
-phaseOffset = angle((z'*object)/(object'*object));
-objectest = z*exp(1i*phaseOffset);
-errorx = 10*log10(norm(objectest - object)^2/norm(object)^2);
-[T/100 SNR test (t/T)*100 errorx toc]
-Errortest(test) = errorx;
-runtime(test) = toc;
+if t==T(1)
+phaseOffset = angle((z'*object)/(object'*object)); %Compute the global phase error
+objectest = z*exp(1i*phaseOffset); %Fix the global error
+errorx = 10*log10(norm(objectest - object)^2/norm(object)^2); %Compute the reconstruction error
+[t/100 SNR test  errorx toc] %Output results
+Errortest(1,test) = errorx; %Log the reconstruction error
+runtime(1,test) = toc; %End the timer
+else
+end
+if t==T(2)
+phaseOffset = angle((z'*object)/(object'*object)); %Compute the global phase error
+objectest = z*exp(1i*phaseOffset); %Fix the global error
+errorx = 10*log10(norm(objectest - object)^2/norm(object)^2); %Compute the reconstruction error
+[t/100 SNR test  errorx toc] %Output results
+Errortest(2,test) = errorx; %Log the reconstruction error
+runtime(2,test) = toc; %End the timer
+else
+end
+if t==T(3)
+phaseOffset = angle((z'*object)/(object'*object)); %Compute the global phase error
+objectest = z*exp(1i*phaseOffset); %Fix the global error
+errorx = 10*log10(norm(objectest - object)^2/norm(object)^2); %Compute the reconstruction error
+[t/100 SNR test  errorx toc] %Output results
+Errortest(3,test) = errorx; %Log the reconstruction error
+runtime(3,test) = toc; %End the timer
+else
+end
+z = z - (min(1 - exp(-t/t0),mu0)/(abs(lambda)))*sum(reshape(reshape(repmat(transpose(abs(ar'*z).^2 - vecY),d,1),[],1).*Arz,d,Knum*Lnum),2);  %Generate the new iterate
+end
+phaseOffset = angle((z'*object)/(object'*object)); %Compute the global phase error
+objectest = z*exp(1i*phaseOffset); %Fix the global error
+errorx = 10*log10(norm(objectest - object)^2/norm(object)^2); %Compute the reconstruction error
+[T(4)/100 SNR test errorx toc] %Output results
+Errortest(4,test) = errorx; %Log the reconstruction error
+runtime(4,test) = toc;%End the timer
+end
 
+signalnoiseratio(s) = SNR; %Record the SNR used for the test
+for n=1:4
+Error2(s,n) = mean(rmmissing(Errortest(n,:))); %Compute the mean of the reconstruction error
+runtime2(s,n) = mean(runtime(n,:)); %Compute the mean of the runtime
+ca{n} = sprintf('%d iters', T(n)); %Set legend for each number of iterations
 end
+end
+%% Plotting figures
 
-signalnoiseratio(s) = SNR;
-Error2(s,nc) = mean(Errortest);
-runtime2(s,nc) = mean(runtime);
-end
-end
-
+%First we plot our first figure, comparing the reconstruction error of the
+%two algorithms, applying various numbers of iterations, versus varying levels of SNR
 plot(signalnoiseratio,Error2(:,1),'-b','LineWidth',2)
 hold on
 plot(signalnoiseratio,Error2(:,2),'-.r','LineWidth',2)
@@ -272,20 +289,22 @@ hold on
 plot(signalnoiseratio,Error1(:,1),'m','LineWidth',2)
 hold on
 
-xlabel({'SNR (in dB)'})
-ylabel({'Reconstruction Error (in dB)'})
-title({'SNR vs Reconstruction Error'})
+xlabel({'SNR (in dB)'}) %Generate label for x-axis
+ylabel({'Reconstruction Error (in dB)'}) %Generate label for y-axis
+title({'SNR vs Reconstruction Error'}) %Generate title
 xticks(20:10:80) 
-legend(ca, 'Location', 'northeast')
+legend(ca, 'Location', 'northeast') %Generate the legend
 
-figure()
+figure() %Start new figure
 
-X = categorical({'BlockPR','WF = 250 Iters','WF = 500 Iters','WF = 1000 Iters', 'WF = 2000 Iters'});
-X = reordercats(X,{'BlockPR','WF = 250 Iters','WF = 500 Iters','WF = 1000 Iters', 'WF = 2000 Iters'});
+%Secondly, we plot our runtime comparisons of the
+%two algorithms, applying various numbers of iterations, versus the delta level
+X = categorical({'BlockPR','WF = 250 Iters','WF = 500 Iters','WF = 750 Iters', 'WF = 1000 Iters'});
+X = reordercats(X,{'BlockPR','WF = 250 Iters','WF = 500 Iters','WF = 750 Iters', 'WF = 1000 Iters'});
 Y = [ mean(runtime1(:,1)) mean(runtime2(:,1)) mean(runtime2(:,2)) mean(runtime2(:,3)) mean(runtime2(:,4))];
-bar(X,Y)
-title('Iterations vs Runtime')
-ylabel('Runtime (in seconds)')
+bar(X,Y) %Create bar chart
+title('Iterations vs Runtime') %Generate title
+ylabel('Runtime (in seconds)') %Generate label for y-axis 
 
 
 %% Pre-Assigned Functions

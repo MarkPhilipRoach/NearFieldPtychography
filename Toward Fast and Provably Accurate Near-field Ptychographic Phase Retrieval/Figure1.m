@@ -4,7 +4,7 @@ Tests = 1; %Choose number of tests
 ca = cell(1,4); %Generate blank legend for figure
 %% Assigning variables
 
-d = 315; %Choose the lenghth of the sample
+d = 945; %Choose the lenghth of the sample
 objectX = randn(d,Tests)+ 1i*randn(d,Tests); %Generate the test samples
 
 %% Dummy variables
@@ -81,11 +81,9 @@ for l = 1:2*delta-1
     end
 end
 
-%Construct our matrix
-maskmatrix = repmat(masklmatrix,Knum,1);
-for i=1:Knum
-    maskmatrix((i-1)*(2*delta-1)+1:i*(2*delta-1),:) = circshift(maskmatrix((i-1)*(2*delta-1)+1:i*(2*delta-1),:) ,(i-1)*(2*delta-1),2);
-end
+%Construct our block circulant matrix
+maskmatrix = BlockCirculant(masklmatrix,d);
+
 
 %% Constructing measurements
 %Construct the convolutional measurements and rearrange the measurement to
@@ -114,7 +112,7 @@ Y = transpose(Y + noise);
 %matrix and multiplying with the vectorization of our noisy measurements
 
 y = maskmatrix\Y(:);
-
+y = y(:);
 %% Weighted angular synchronization
 %Perform weighted angular synchronization
 
@@ -140,8 +138,8 @@ for i=1:d
     end
     Dmatrix(i,i) = sum(Weight(i,:));
 end
-L = Dmatrix - Xtilde; %Compute the weighted Laplacian
-[xrec2, ~, ~] = eigs(L, 1, 'smallestabs');    % compute smallest eigenvector
+LG = Dmatrix - Xtilde; %Compute the weighted Laplacian
+[xrec2, ~, ~] = eigs(LG, 1, 'smallestabs');    % compute smallest eigenvector
 xrec2 = xrec2./abs(xrec2); %Normalize this eigenvector
 xest = sqrt(diag(X)).*xrec2; %Compute our estimate
 phaseOffset = angle( (xest'*object) / (object'*object) ); %Compute the global phase error
@@ -178,9 +176,9 @@ legend(ca, 'Location', 'northeast') %Generate the legend
 
 figure() %Start new figure
 
-%Secondly, we plot our runtime comparions versus the delta level
-X = categorical({'2','5','8','11'}); 
-X = reordercats(X,{'2','5','8','11'});
+%Secondly, we plot our runtime comparisons versus the delta level
+X = categorical({'5','14','23','32'}); 
+X = reordercats(X,{'5','14','23','32'});
 Y = [mean(runtime1(:,1)) mean(runtime1(:,2)) mean(runtime1(:,3)) mean(runtime1(:,4))];
 plot(X,Y,'Marker','o','Color', 'b','LineWidth',2)
 
