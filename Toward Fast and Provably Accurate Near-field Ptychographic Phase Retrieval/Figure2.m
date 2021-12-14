@@ -1,10 +1,8 @@
 clear all
 
-Tests = 1; %Choose number of tests
-
-
 %% Code for solving by BlockPR
 
+Tests = 100; %Choose number of tests
 %% Assigning variables
 
 d = 102; %Choose the lenghth of the sample
@@ -161,7 +159,8 @@ D = zeros(d,Knum*Lnum);
 Errortest = zeros(4,Tests);
 runtime = zeros(4,Tests);
 %% Iterations
-T = [250 500 750 1000]; %Set of Number of Iterations
+T = [ 250 500 1000 2000]; %Set of Number of Iterations
+%T = [100 150 200 250];
 
 %% Noise
 %Generate the additive noise (not adjusted for magnitude yet) that will be used for the test
@@ -221,15 +220,14 @@ Z = D*(Ar.*reshape(repmat(reshape(transpose(repmat(vecY,1,d)),1,[]),1,d),[],d))*
 [u, ~, ~] = eigs(Z, 1, 'largestabs','Tolerance',1e-4); %Compute largest eigenvector
 z0 = sqrt(lambda)*u/norm(u); %Set initial estimate
 %% Wirtinger Flow
-
-mu0 = 0.4;
+%Here we now perform our Wirtinger flow gradient descent
+mu0 = 0.4; 
 t0 = 330;
 z = z0;
 for t = 1:T(4) %Compute the iterations
-if mod(t-1,50)==0
-Arz = Ar*z;
-else
-end
+arz = ar'*z;
+Arz = ar*(arz.*reshape(transpose(abs(arz).^2 - vecY),[],1));
+z = z - (min(1 - exp(-t/t0),mu0)/(abs(lambda)))*Arz; %Generate the new iterate
 if t==T(1)
 phaseOffset = angle((z'*object)/(object'*object)); %Compute the global phase error
 objectest = z*exp(1i*phaseOffset); %Fix the global error
@@ -257,7 +255,6 @@ Errortest(3,test) = errorx; %Log the reconstruction error
 runtime(3,test) = toc; %End the timer
 else
 end
-z = z - (min(1 - exp(-t/t0),mu0)/(abs(lambda)))*sum(reshape(reshape(repmat(transpose(abs(ar'*z).^2 - vecY),d,1),[],1).*Arz,d,Knum*Lnum),2);  %Generate the new iterate
 end
 phaseOffset = angle((z'*object)/(object'*object)); %Compute the global phase error
 objectest = z*exp(1i*phaseOffset); %Fix the global error
@@ -295,16 +292,14 @@ title({'SNR vs Reconstruction Error'}) %Generate title
 xticks(20:10:80) 
 legend(ca, 'Location', 'northeast') %Generate the legend
 
-figure() %Start new figure
+figure2 = figure;
 
-%Secondly, we plot our runtime comparisons of the
-%two algorithms, applying various numbers of iterations, versus the delta level
-X = categorical({'BlockPR','WF = 250 Iters','WF = 500 Iters','WF = 750 Iters', 'WF = 1000 Iters'});
-X = reordercats(X,{'BlockPR','WF = 250 Iters','WF = 500 Iters','WF = 750 Iters', 'WF = 1000 Iters'});
+X = categorical({'BlockPR','WF = 250 Iters','WF = 500 Iters','WF = 1000 Iters', 'WF = 2000 Iters'});
+X = reordercats(X,{'BlockPR','WF = 250 Iters','WF = 500 Iters','WF = 1000 Iters', 'WF = 2000 Iters'});
 Y = [ mean(runtime1(:,1)) mean(runtime2(:,1)) mean(runtime2(:,2)) mean(runtime2(:,3)) mean(runtime2(:,4))];
-bar(X,Y) %Create bar chart
+bar(X,Y) %Generate bar graph
 title('Iterations vs Runtime') %Generate title
-ylabel('Runtime (in seconds)') %Generate label for y-axis 
+ylabel('Runtime (in seconds)') %Generate label for y-axis
 
 
 %% Pre-Assigned Functions

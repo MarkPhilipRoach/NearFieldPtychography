@@ -1,6 +1,6 @@
 clear all
 
-Tests = 1; %Choose number of tests
+Tests = 100; %Choose number of tests
 ca = cell(1,4); %Generate blank legend for figure
 %% Assigning variables
 

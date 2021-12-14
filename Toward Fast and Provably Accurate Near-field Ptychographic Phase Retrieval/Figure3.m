@@ -2,8 +2,8 @@ clear all
 
 %% Code for solving by Wirtinger Flow
 
-Tests = 1; %Choose number of tests
-ca = cell(1,4);
+Tests = 100; %Choose number of tests
+
 %% Assigning variables
 d =  102; %size of object
 objectX = randn(d,Tests) + 1i*randn(d,Tests);  %Generate the test samples
@@ -16,6 +16,7 @@ Error1 = zeros(4,4);
 Error2 = zeros(1,15);
 runtime2 = zeros(4,5);
 Errortest = zeros(1,Tests);
+ca = cell(1,4);
 %% Shifts
 counter = 0;
 for Shifts = 30:15:75 %Set number of shifts
@@ -195,9 +196,9 @@ mu0 = 0.4;
 t0 = 330;
 z = z0;
 for t = 1:T %Compute the iterations
-mu = min(1 - exp(-t/t0),mu0); %Compute the stepsize
-temp1 = repmat(transpose(abs(ar'*z).^2 - vecY),d,1);
-z = z - (mu/abs(lambda))*sum(reshape(temp1(:).*(Matrix*z),d,Knum*Lnum),2); %Generate the new iterate
+arz = ar'*z;
+Arz = ar*(arz.*reshape(transpose(abs(arz).^2 - vecY),[],1));
+z = z - (min(1 - exp(-t/t0),mu0)/(abs(lambda)))*Arz; %Generate the new iterate
 end
 phaseOffset = angle((z'*object)/(object'*object)); %Compute the global phase error
 objectest = z*exp(1i*phaseOffset); %Fix the global error
