@@ -20,11 +20,9 @@ Dmatrix = zeros(d,d);
 signalnoiseratio = zeros(4,1);
 Error1 = zeros(4,1);
 runtime1 = zeros(1,1);
-ca = cell(1,5);
 %% Choose delta
 
 delta = 26; %Choose delta
-ca{5} = sprintf('%d BlockPR', delta); %Update legend
 D = d*(2*delta-1);
 K = 0:d-1; %set of shifts
 L = 0:2*delta-2;% %set of frequencies
@@ -266,40 +264,74 @@ end
 
 signalnoiseratio(s) = SNR; %Record the SNR used for the test
 for n=1:4
-Error2(s,n) = mean(rmmissing(Errortest(n,:))); %Compute the mean of the reconstruction error
+Error2(s,n) = mean(Errortest(n,:)); %Compute the mean of the reconstruction error
 runtime2(s,n) = mean(runtime(n,:)); %Compute the mean of the runtime
-ca{n} = sprintf('%d iters', T(n)); %Set legend for each number of iterations
 end
 end
 %% Plotting figures
 
 %First we plot our first figure, comparing the reconstruction error of the
 %two algorithms, applying various numbers of iterations, versus varying levels of SNR
-plot(signalnoiseratio,Error2(:,1),'-b','LineWidth',2)
-hold on
-plot(signalnoiseratio,Error2(:,2),'-.r','LineWidth',2)
-hold on
-plot(signalnoiseratio,Error2(:,3),':g','LineWidth',2)
-hold on
-plot(signalnoiseratio,Error2(:,4),'-.k','LineWidth',2)
-hold on
-plot(signalnoiseratio,Error1(:,1),'m','LineWidth',2)
-hold on
 
-xlabel({'SNR (in dB)'}) %Generate label for x-axis
-ylabel({'Reconstruction Error (in dB)'}) %Generate label for y-axis
-title({'SNR vs Reconstruction Error'}) %Generate title
-xticks(20:10:80) 
-legend(ca, 'Location', 'northeast') %Generate the legend
+% Create figure
+figure1 = figure;
 
+% Create axes
+axes1 = axes('Parent',figure1);
+hold(axes1,'on');
+
+% Create multiple lines using matrix input to plot
+plot1 = plot(signalnoiseratio,[Error2(:,1) Error2(:,2) Error2(:,3) Error2(:,4) Error1(:,1)],'LineWidth',2,'Parent',axes1);
+set(plot1(1),'DisplayName','WF = 250 iters','Color',[0 0 1]);
+set(plot1(2),'DisplayName','WF = 500 iters','LineStyle','-.',...
+    'Color',[1 0 0]);
+set(plot1(3),'DisplayName','WF = 1000 iters','LineStyle',':',...
+    'Color',[0 1 0]);
+set(plot1(4),'DisplayName','WF = 2000 iters','LineStyle','-.',...
+    'Color',[0 0 0]);
+set(plot1(5),'DisplayName','BlockPR','Color',[1 0 1]);
+
+% Create ylabel
+ylabel({'Reconstruction Error (in dB)'});
+
+% Create xlabel
+xlabel({'SNR (in dB)'});
+
+% Create title
+title({'SNR vs Reconstruction Error'});
+
+box(axes1,'on');
+hold(axes1,'off');
+% Set the remaining axes properties
+set(axes1,'XTick',[20 30 40 50 60 70 80]);
+% Create legend
+legend(axes1,'show');
+
+%Secondly, we plot the average runtime
+%two algorithms, applying various numbers of iterations.
+
+
+% Create figure
 figure2 = figure;
 
+% Create axes
+axes1 = axes('Parent',figure2);
+hold(axes1,'on');
+
+% Create bar
 X = categorical({'BlockPR','WF = 250 Iters','WF = 500 Iters','WF = 1000 Iters', 'WF = 2000 Iters'});
 X = reordercats(X,{'BlockPR','WF = 250 Iters','WF = 500 Iters','WF = 1000 Iters', 'WF = 2000 Iters'});
 Y = [ mean(runtime1(:,1)) mean(runtime2(:,1)) mean(runtime2(:,2)) mean(runtime2(:,3)) mean(runtime2(:,4))];
-bar(X,Y) %Generate bar graph
-title('Iterations vs Runtime') %Generate title
-ylabel('Runtime (in seconds)') %Generate label for y-axis
+bar(X,Y);
+
+% Create ylabel
+ylabel('Runtime (in seconds)');
+
+% Create title
+title('Iterations vs Runtime');
+
+box(axes1,'on');
+hold(axes1,'off');
 
 
 %% Pre-Assigned Functions

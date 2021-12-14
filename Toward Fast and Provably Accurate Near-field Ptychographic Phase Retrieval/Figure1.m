@@ -1,7 +1,6 @@
 clear all
 
 Tests = 100; %Choose number of tests
-ca = cell(1,4); %Generate blank legend for figure
 %% Assigning variables
 
 d = 945; %Choose the lenghth of the sample
@@ -23,7 +22,6 @@ runtime1 = zeros(1,1);
 counter = 0;
 for delta = [2 5 8 11] %Choose delta
 counter = counter + 1; 
-ca{counter} = sprintf('delta = %d', delta); %Generate the legend for delta
 D = d*(2*delta-1);
 K = 0:d-1; %set of shifts
 L = 0:2*delta-2;% %set of frequencies
@@ -159,32 +157,63 @@ end
 
 %First we plot our first figure, comparing the reconstruction error with
 %the SNR
-plot(signalnoiseratio,Error1(:,1),'-b','LineWidth',1.5)
-hold on
-plot(signalnoiseratio,Error1(:,2),'--r','LineWidth',1.5)
-hold on
-plot(signalnoiseratio,Error1(:,3),':g','LineWidth',1.5)
-hold on
-plot(signalnoiseratio,Error1(:,4),'-.k','LineWidth',1.5)
 
-xlabel({'SNR (in dB)'}) %Generate label for x-axis
-ylabel({'Reconstruction Error (in dB)'}) %Generate label for y-axis
-title({'SNR vs Reconstruction Error'}) %Generate title
-xticks(20:10:80)
-legend(ca, 'Location', 'northeast') %Generate the legend
+% Create figure
+figure1 = figure;
 
+% Create axes
+axes1 = axes('Parent',figure1);
+hold(axes1,'on');
 
-figure() %Start new figure
+% Create multiple lines using matrix input to plot
+plot1 = plot(signalnoiseratio,[Error1(:,1) Error1(:,2) Error1(:,3) Error1(:,4)],'LineWidth',1.5,'Parent',axes1);
+set(plot1(1),'DisplayName','\delta = 2','Color',[0 0 1]);
+set(plot1(2),'DisplayName','\delta = 5','LineStyle','--','Color',[1 0 0]);
+set(plot1(3),'DisplayName','\delta = 8','LineStyle',':','Color',[0 1 0]);
+set(plot1(4),'DisplayName','\delta = 11','LineStyle','-.','Color',[0 0 0]);
+
+% Create ylabel
+ylabel({'Reconstruction Error (in dB)'});
+
+% Create xlabel
+xlabel({'SNR (in dB)'});
+
+% Create title
+title({'SNR vs Reconstruction Error'});
+
+box(axes1,'on');
+hold(axes1,'off');
+% Set the remaining axes properties
+set(axes1,'XTick',[20 30 40 50 60 70 80]);
+% Create legend
+legend(axes1,'show');
 
 %Secondly, we plot our runtime comparisons versus the delta level
+
+% Create figure
+figure2 = figure;
+
+% Create axes
+axes1 = axes('Parent',figure2);
+hold(axes1,'on');
+
+% Create plot
 X = categorical({'5','14','23','32'}); 
 X = reordercats(X,{'5','14','23','32'});
 Y = [mean(runtime1(:,1)) mean(runtime1(:,2)) mean(runtime1(:,3)) mean(runtime1(:,4))];
-plot(X,Y,'Marker','o','Color', 'b','LineWidth',2)
+plot(X,Y,'Marker','o','LineWidth',2,'Color',[0 0 1]);
 
-xlabel({'\delta'}) %Generate label for x-axis
-ylabel({'Runtime (in seconds)'}) %Generate label for y-axis
-title({'\delta vs Runtime'}) %Generate title
+% Create ylabel
+ylabel({'Runtime (in seconds)'});
+
+% Create xlabel
+xlabel({'\delta'});
+
+% Create title
+title({'\delta vs Runtime'});
+
+box(axes1,'on');
+hold(axes1,'off');
 
 %% Pre-Assigned Functions
 function[f] = reversal(x)
