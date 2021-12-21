@@ -29,8 +29,6 @@ Lnum = length(L); % Number of frequencies
 
 %% Dummy variables part deux
 ar = zeros(d,Knum*Lnum);
-Ar = zeros((Knum*Lnum)*d,d);
-D = zeros(d,Knum*Lnum);
 
 %% Noise
 s = 0;
@@ -47,8 +45,7 @@ pointspread = ifft(circshift([ones(gamma,1); zeros(d - gamma,1)],-(gamma-1)/2));
  %Compute the mask
 maskorg = Maskorg(:,test); %Choosing mask
 
-
-tic 
+tic %Start timer
 %% Constructing measurements
 %Construct the convolutional measurements and rearrange the measurement to
 %our requried form
@@ -79,16 +76,13 @@ vecY = reshape(transpose(Y + noise),[],1);
 %% Initialization
 for n = 1:Knum*Lnum
     ar(:,n) = circshift(conj(matrixmask(L(mod(n-1,Lnum)+1)+1,:))',K(floor((n-1)/Lnum)+1));
-    Ar((n-1)*d+1:n*d,:) = ar(:,n)*ar(:,n)';
-    for i = 1:d
-            D(i,(n-1)*d+i) = mod(ceil((i+n-2)/d)+1 ,2);
-    end
 end
-
 lambda = d*sum(vecY)/sum(vecnorm(ar));
-Z = D*(Ar.*reshape(repmat(reshape(transpose(repmat(vecY,1,d)),1,[]),1,d),[],d))*(1/(Knum*Lnum));
-
-[u, ~, ~] = eigs(Z, 1, 'largestabs','Tolerance',1e-4); %Compute largest eigenvector
+Z = zeros(d,d);
+for n = 1:Knum*Lnum
+    Z = Z + vecY(n)*ar(:,n)*ar(:,n)'*1/(Knum*Lnum);
+end
+[u, ~, ~] = eigs(Z, 1, 'largestabs'); %Compute largest eigenvector
 z0 = sqrt(lambda)*u/norm(u); %Set initial estimate
 
 %% Gradient Descent
@@ -97,11 +91,9 @@ mu0 = 0.4;
 t0 = 330;
 z = z0;
 for t = 1:T %Compute the iterations
-if mod(t-1,50)==0
-Arz = Ar*z;
-else 
-end
-z = z - (min(1 - exp(-t/t0),mu0)/(abs(lambda)))*sum(reshape(reshape(repmat(transpose(abs(ar'*z).^2 - vecY),d,1),[],1).*Arz,d,Knum*Lnum),2);  %Generate the new iterate
+arz = ar'*z;
+Arz = ar*(arz.*reshape(transpose(abs(arz).^2 - vecY),[],1));
+z = z - (min(1 - exp(-t/t0),mu0)/(abs(lambda)))*Arz; %Generate the new iterate
 end
 phaseOffset = angle((z'*object)/(object'*object)); %Compute the global phase error
 objectest = z*exp(1i*phaseOffset); %Fix the global error
@@ -130,10 +122,6 @@ Knum = length(K); %Number of shifts
 
 %% Dummy variables
 ar = zeros(d,Knum*Lnum);
-Ar = zeros((Knum*Lnum)*d,d);
-Ar2 = zeros((Knum*Lnum)*d,d);
-Y2 = zeros((Knum*Lnum)*d,d);
-D = zeros(d,Knum*Lnum);
 Errortest = zeros(1,Tests);
 
 
@@ -174,21 +162,15 @@ vecY = Y(:);
 
 for n = 1:Knum*Lnum
     ar(:,n) = circshift(conj(matrixmask(L(mod(n-1,Lnum)+1)+1,:))',K(floor((n-1)/Lnum)+1));
-        Ar((n-1)*d+1:n*d,:) = repmat(ar(:,n),1,d);
-        Ar2((n-1)*d+1:n*d,:) = repmat(ar(:,n)',d,1);
-        Y2((n-1)*d+1:n*d,1:d) = vecY(n);
-        for i = 1:d
-            D(i,(n-1)*d+i) = mod(ceil((i+n-2)/d)+1 ,2);
-        end
 end
-Matrix = (Ar.*Ar2);
 
 lambda = d*sum(vecY)/sum(vecnorm(ar));
-Z = D*(1/(Knum*Lnum)*Matrix.*Y2);
-[~,~,V] = svd(Z,'econ'); %Compute the SVD of Z
-u = V(:,1);%Compute the largest eigenvector
-u = u/norm(u); %Normalize eigenvector
-z0 = sqrt(lambda)*u; %Generate the initialization
+Z = zeros(d,d);
+for n = 1:Knum*Lnum
+    Z = Z + vecY(n)*ar(:,n)*ar(:,n)'*1/(Knum*Lnum);
+end
+[u, ~, ~] = eigs(Z, 1, 'largestabs'); %Compute largest eigenvector
+z0 = sqrt(lambda)*u/norm(u); %Set initial estimate
 
 %% Gradient Descent
 
@@ -205,9 +187,7 @@ objectest = z*exp(1i*phaseOffset); %Fix the global error
 errorx = 10*log10(norm(objectest - object)^2/norm(object)^2); %Compute the reconstruction error
 [Shifts SNR test T/100 errorx toc] %Output results
 Errortest(test) = errorx; %Log the reconstruction error
-
 end
-
 Error2(counter) = mean(Errortest); %Compute the mean of the reconstruction error
 end
 %% Plotting figures
@@ -241,6 +221,7 @@ box(axes1,'on');
 hold(axes1,'off');
 % Set the remaining axes properties
 set(axes1,'XTick',[20 30 40 50 60 70 80]);
+
 % Create legend
 legend(axes1,'show');
 
@@ -270,10 +251,6 @@ box(axes1,'on');
 hold(axes1,'off');
 % Set the remaining axes properties
 set(axes1,'XTick',[15 20 25 30 35 40 45 50 55 60 65 70 75 80 85]);
-
-
-
-
 
 %% Pre-Assigned Functions
 
