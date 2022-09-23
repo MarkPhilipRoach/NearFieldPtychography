@@ -157,10 +157,10 @@ hold(axes1,'on');
 
 % Create multiple lines using matrix input to plot
 plot1 = plot(signalnoiseratio,[Error1(:,1) Error1(:,2) Error1(:,3) Error1(:,4)],'LineWidth',1.5,'Parent',axes1);
-set(plot1(1),'DisplayName','\delta = 2','Color',[0 0 1]);
-set(plot1(2),'DisplayName','\delta = 5','LineStyle','--','Color',[1 0 0]);
-set(plot1(3),'DisplayName','\delta = 8','LineStyle',':','Color',[0 1 0]);
-set(plot1(4),'DisplayName','\delta = 11','LineStyle','-.','Color',[0 0 0]);
+set(plot1(1),'DisplayName','\delta = 5','Color',[0 0 1]);
+set(plot1(2),'DisplayName','\delta = 14','LineStyle','--','Color',[1 0 0]);
+set(plot1(3),'DisplayName','\delta = 23','LineStyle',':','Color',[0 1 0]);
+set(plot1(4),'DisplayName','\delta = 32','LineStyle','-.','Color',[0 0 0]);
 
 % Create ylabel
 ylabel({'Reconstruction Error (in dB)'});
